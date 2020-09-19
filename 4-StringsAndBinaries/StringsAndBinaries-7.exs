@@ -10,8 +10,7 @@ defmodule MyFile do
     File.read!(path)
     |> String.split(~r{[\n]})
     |> Enum.map(&String.split(&1, ","))
-    |> List.delete_at(0)
-    |> Enum.map(&Enum.zip([:id, :ship_to, :net_amount], &1))
+    |> map_header()
     |> Enum.map(&transform/1)
     |> Taxes.apply(tax_rates)
   end
@@ -22,5 +21,12 @@ defmodule MyFile do
     b = String.to_atom(String.replace(Keyword.get(order,:ship_to), ":", ""))
     c = String.to_float(Keyword.get(order,:net_amount))
     [id: a, ship_to: b, net_amount: c]
+  end
+
+  defp map_header([h | t]) do
+    headers = Enum.map(h, &String.to_atom/1)
+    res = Enum.map(t, &Enum.zip(headers, &1))
+    IO.inspect res
+    res
   end
 end
