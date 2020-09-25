@@ -7,23 +7,20 @@ defmodule Ticker do
   end
 
   def register(client_pid) do
-    IO.inspect :global.whereis_name(@name)
     send :global.whereis_name(@name), {:register, client_pid}
   end
 
   def generator(clients) do
-    IO.puts "Start ticker"
-    ticker_pid = spawn __MODULE__, :ticker, [clients]
-    IO.puts "Start listening for register event"
-    listen_pid = spawn __MODULE__, :listen_register, [ticker_pid]
-    :global.register_name(@name, listen_pid)
+    clients
+    |> (&(spawn(__MODULE__, :ticker, [&1]))).()
+    |> (&(spawn(__MODULE__, :listen_register, [&1]))).()
+    |> (&(:global.register_name(@name, &1))).()
   end
 
   def listen_register(ticker_pid) do
     receive do
       {:register, client_pid} ->
-        IO.puts "Registered client"
-        IO.inspect client_pid
+        IO.puts "Registered client #{inspect client_pid}"
         send ticker_pid, {:add_client, client_pid}
         listen_register(ticker_pid)
     end
@@ -31,13 +28,8 @@ defmodule Ticker do
 
   def ticker(clients) do
     IO.puts "tick"
-
-    if clients != [] do
-      Enum.each(Enum.reverse(clients), fn client -> (
-        :timer.sleep(2000)
-        send client, :tick) end)
-    end
-
+    if clients != [], do: Enum.each(
+      Enum.reverse(clients), fn client -> (send client, :tick) end)
     receive do
       {:add_client, new_client} ->
         ticker([new_client | clients])
@@ -60,5 +52,4 @@ defmodule Client do
         receive_tick(name)
     end
   end
-
 end
